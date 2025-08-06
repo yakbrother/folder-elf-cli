@@ -80,13 +80,19 @@ This will install the tool to `$GOPATH/bin/` or `$GOBIN/`.
 
 ### Basic Usage
 
-To clean up your downloads folder with the default settings:
+To scan your downloads folder and see what's there:
 
 ```bash
 ./elf-cli clean
 ```
 
-This will scan your downloads folder and show you what it found, but won't make any changes.
+This will scan your downloads folder and show you what it found, but won't make any changes unless you add specific flags.
+
+**To actually organize files, use:**
+
+```bash
+./elf-cli clean --organize --remove-duplicates
+```
 
 ### How the Tool Finds Your Downloads Folder
 
@@ -113,6 +119,8 @@ To see what would be done without actually making any changes:
 ```bash
 ./elf-cli clean --dry-run
 ```
+
+**Note**: The tool will show a warning and ask for confirmation before making changes. Use `--force` to skip the confirmation prompt (useful for automated scripts).
 
 ### Removing Duplicates
 
@@ -156,6 +164,20 @@ You can combine multiple options:
 ```bash
 ./elf-cli clean --dry-run --organize --remove-duplicates --process-zips
 ```
+
+**Available flags:**
+
+- `--dry-run` - Preview changes without making them
+- `--force` - Skip confirmation prompt (for automation)
+- `--organize` - Organize files by category
+- `--organize-by-date` - Organize files by date
+- `--organize-by-size` - Organize files by size
+- `--remove-duplicates` - Remove duplicate files
+- `--pattern-duplicates` - Remove duplicates by naming patterns
+- `--interactive-duplicates` - Interactive duplicate removal
+- `--move-duplicates <folder>` - Move duplicates to folder
+- `--process-zips` - Process zip file contents
+- `--path <path>` - Specify custom folder path
 
 ### Specifying a Custom Path
 
@@ -337,19 +359,19 @@ You can automate the cleanup of your downloads folder by setting up elf-cli as a
    **Run every day at 2 AM**:
 
    ```
-   0 2 * * * /usr/local/bin/elf-cli clean --organize --remove-duplicates --pattern-duplicates
+   0 2 * * * /usr/local/bin/elf-cli clean --organize --remove-duplicates --pattern-duplicates --force
    ```
 
    **Run every Friday at 6 PM**:
 
    ```
-   0 18 * * 5 /usr/local/bin/elf-cli clean --organize --remove-duplicates --pattern-duplicates
+   0 18 * * 5 /usr/local/bin/elf-cli clean --organize --remove-duplicates --pattern-duplicates --force
    ```
 
    **Run every hour** (for very active download folders):
 
    ```
-   0 * * * * /usr/local/bin/elf-cli clean --organize --remove-duplicates --pattern-duplicates
+   0 * * * * /usr/local/bin/elf-cli clean --organize --remove-duplicates --pattern-duplicates --force
    ```
 
 4. **Save and exit** the editor.
@@ -367,7 +389,7 @@ You can automate the cleanup of your downloads folder by setting up elf-cli as a
    - **Trigger**: Choose how often you want it to run (daily, weekly, etc.)
    - **Action**: "Start a program"
    - **Program/script**: Path to your elf-cli executable
-   - **Add arguments**: `clean --organize --remove-duplicates --pattern-duplicates`
+   - **Add arguments**: `clean --organize --remove-duplicates --pattern-duplicates --force`
 
 3. **Finish the wizard** to create the task.
 
@@ -376,7 +398,7 @@ You can automate the cleanup of your downloads folder by setting up elf-cli as a
 To keep a log of what the cron job does, you can redirect the output to a log file:
 
 ```
-0 2 * * * /usr/local/bin/elf-cli clean --organize --remove-duplicates --pattern-duplicates >> /home/username/elf-cli.log 2>&1
+0 2 * * * /usr/local/bin/elf-cli clean --organize --remove-duplicates --pattern-duplicates --force >> /home/username/elf-cli.log 2>&1
 ```
 
 ### Dry Run in Cron
@@ -384,7 +406,7 @@ To keep a log of what the cron job does, you can redirect the output to a log fi
 If you want to test the cron job without actually making changes, use the `--dry-run` flag:
 
 ```
-0 2 * * * /usr/local/bin/elf-cli clean --dry-run --organize --remove-duplicates --pattern-duplicates >> /home/username/elf-cli.log 2>&1
+0 2 * * * /usr/local/bin/elf-cli clean --dry-run --organize --remove-duplicates --pattern-duplicates --force >> /home/username/elf-cli.log 2>&1
 ```
 
 ## Contributing
