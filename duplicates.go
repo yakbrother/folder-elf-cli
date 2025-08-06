@@ -23,6 +23,18 @@ func NewDuplicateHandler(scanner *Scanner, dryRun bool) *DuplicateHandler {
 	}
 }
 
+// atomicMove performs an atomic file move operation
+func (dh *DuplicateHandler) atomicMove(src, dst string) error {
+	// Try atomic rename first (works on same filesystem)
+	err := os.Rename(src, dst)
+	if err == nil {
+		return nil
+	}
+
+	// If rename fails (cross-device), use copy + delete
+	return dh.copyAndDelete(src, dst)
+}
+
 // RemoveDuplicates removes duplicate files, keeping the newest version of each
 func (dh *DuplicateHandler) RemoveDuplicates() error {
 	if len(dh.Scanner.Duplicates) == 0 {
@@ -353,14 +365,10 @@ func (dh *DuplicateHandler) MoveDuplicatesToFolder(destFolder string) error {
 				warningColor.Printf("   📁 Would move: %s -> %s\n", file.Name, destFolder)
 			} else {
 				fmt.Printf("   📁 Moving: %s\n", file.Name)
-				err := os.Rename(file.Path, destPath)
+				err := dh.atomicMove(file.Path, destPath)
 				if err != nil {
-					// If rename fails (cross-device?), try copy + delete
-					err = dh.copyAndDelete(file.Path, destPath)
-					if err != nil {
-						warningColor.Printf("   ⚠️  Failed to move %s: %v\n", file.Name, err)
-						continue
-					}
+					warningColor.Printf("   ⚠️  Failed to move %s: %v\n", file.Name, err)
+					continue
 				}
 			}
 			
@@ -399,6 +407,11 @@ func (dh *DuplicateHandler) copyAndDelete(src, dst string) error {
 	// Copy file content
 	_, err = dstFile.ReadFrom(srcFile)
 	if err != nil {
+		return err
+	}
+
+	// Sync to ensure data is written
+	if err := dstFile.Sync(); err != nil {
 		return err
 	}
 

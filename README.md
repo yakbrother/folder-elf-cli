@@ -2,6 +2,10 @@
 
 FolderElf CLI (command name: elf-cli) is a command-line tool written in Go that helps you organize your downloads folder by removing duplicates, categorizing files, and inspecting zip archives to determine their appropriate folders.
 
+## ⚠️ Security Notice
+
+**This tool performs destructive file operations!** It can delete and move files permanently. Always use `--dry-run` first to preview what will be done before running actual operations.
+
 ## Features
 
 - **Duplicate Detection and Removal**: Finds duplicate files using MD5 hashes and removes them, keeping only the newest version
@@ -10,32 +14,67 @@ FolderElf CLI (command name: elf-cli) is a command-line tool written in Go that 
 - **Multiple Organization Strategies**: Organize by category, date (YYYY-MM format), or file size
 - **Dry Run Mode**: Preview what would be done without actually making any changes
 - **Friendly Colored Output**: Easy-to-read output with colors and emojis
+- **Security Features**: Path validation, zip bomb protection, and atomic file operations
+
+## Prerequisites
+
+- **Go 1.20 or later** (required for building)
+- Git (for cloning the repository)
 
 ## Installation
 
-1. Clone this repository:
+### Option 1: Download Pre-built Binary (Recommended)
+
+Pre-built binaries are available for:
+
+- **macOS**: Intel (AMD64) and Apple Silicon (ARM64)
+- **Linux**: AMD64, ARM64, and ARM32
+- **Windows**: AMD64 and ARM64
+
+Download from the [Releases](https://github.com/yakbrother/folder-elf-cli/releases) section.
+
+**Quick install (Linux/macOS):**
+
+```bash
+# Download and install in one command
+curl -L https://github.com/yakbrother/folder-elf-cli/releases/latest/download/elf-cli-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m) -o elf-cli && chmod +x elf-cli
+```
+
+### Option 2: Build from Source
+
+1. **Clone this repository**:
 
    ```bash
    git clone https://github.com/yakbrother/folder-elf-cli.git
    cd folder-elf-cli
    ```
 
-2. Build the tool:
+2. **Build the tool**:
 
    ```bash
    go build -o elf-cli
    ```
 
-3. Make it executable (optional):
+3. **Make it executable** (optional):
 
    ```bash
    chmod +x elf-cli
    ```
 
-4. Move it to a directory in your PATH (optional):
+4. **Move it to a directory in your PATH** (optional):
    ```bash
    mv elf-cli /usr/local/bin/
    ```
+
+### Option 3: Install via Go
+
+If you have Go installed:
+
+```bash
+go install github.com/yakbrother/folder-elf-cli@latest
+```
+
+This will install the tool to `$GOPATH/bin/` or `$GOBIN/`.
 
 ## Usage
 
@@ -268,6 +307,9 @@ elf-cli is designed to be run repeatedly as your downloads folder (or any folder
 ## Safety Features
 
 - **Dry Run Mode**: Always preview changes before applying them
+- **Path Validation**: Prevents path traversal attacks and restricts operations to safe directories
+- **Zip Bomb Protection**: Detects and prevents zip bomb attacks
+- **Atomic Operations**: Uses atomic file operations to prevent data corruption
 - **Confirmation Prompts**: The tool will ask for confirmation before making destructive changes
 - **Detailed Logging**: See exactly what files are being moved or deleted
 - **Error Handling**: The tool handles errors gracefully and continues processing other files

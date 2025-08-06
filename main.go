@@ -6,10 +6,44 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 )
+
+// validatePath ensures the path is safe and within allowed directories
+func validatePath(path string) error {
+	if path == "" {
+		return fmt.Errorf("path cannot be empty")
+	}
+
+	// Resolve to absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("invalid path: %v", err)
+	}
+
+	// Check for path traversal attempts
+	if strings.Contains(absPath, "..") {
+		return fmt.Errorf("path traversal not allowed")
+	}
+
+	// Get user's home directory for additional validation
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("cannot determine home directory: %v", err)
+	}
+
+	// Ensure path is within user's home directory or system temp
+	if !strings.HasPrefix(absPath, homeDir) && 
+	   !strings.HasPrefix(absPath, os.TempDir()) &&
+	   !strings.HasPrefix(absPath, "/tmp") {
+		return fmt.Errorf("path must be within user directory or temp directory")
+	}
+
+	return nil
+}
 
 // getDefaultDownloadsPath returns the default downloads folder path based on the operating system
 func getDefaultDownloadsPath() (string, error) {
@@ -48,15 +82,19 @@ func main() {
 	errorColor := color.New(color.FgRed, color.Bold)
 
 	app := &cli.App{
-		Name:  "elf-cli",
-		Usage: "A friendly tool to clean up your downloads folder",
+		Name:        "elf-cli",
+		Usage:       "A friendly tool to clean up your downloads folder",
+		Description: "Organize your downloads folder by removing duplicates, categorizing files, and inspecting zip archives.",
+		Version:     "1.2.0",
 		Authors: []*cli.Author{
 			{
-				Name:  "FolderElf CLI",
-				Email: "yakbrother@example.com",
+				Name: "FolderElf CLI",
 			},
 		},
-		Version: "1.0.0",
+		Copyright: "MIT License - see LICENSE file for details",
+		UsageText: `elf-cli clean [options]
+   elf-cli clean --dry-run --organize --remove-duplicates
+   elf-cli clean --path /custom/path --organize-by-date`,
 		Commands: []*cli.Command{
 			{
 				Name:    "clean",
@@ -75,6 +113,12 @@ func main() {
 						}
 					}
 
+					// Validate the path
+					if err := validatePath(downloadsPath); err != nil {
+						errorColor.Printf("❌ Invalid path: %v\n", err)
+						return err
+					}
+
 					infoColor.Printf("🧹 Starting to clean up your downloads folder...\n")
 					infoColor.Printf("📂 Looking at: %s\n", downloadsPath)
 
@@ -85,6 +129,33 @@ func main() {
 					}
 
 					dryRun := c.Bool("dry-run")
+					
+					// Show prominent warning about destructive operations
+					errorColor.Printf("⚠️  WARNING: This tool performs DESTRUCTIVE file operations!\n")
+					errorColor.Printf("⚠️  Files may be DELETED or MOVED permanently.\n")
+					
+					if !dryRun {
+						errorColor.Printf("⚠️  Use --dry-run first to preview changes safely.\n")
+						fmt.Println()
+						
+						// Skip confirmation if --force flag is used
+						if !c.Bool("force") {
+							// Ask for confirmation before proceeding
+							fmt.Print("🤔 Do you want to continue? (y/N): ")
+							var response string
+							fmt.Scanln(&response)
+							
+							response = strings.ToLower(strings.TrimSpace(response))
+							if response != "y" && response != "yes" {
+								fmt.Println("❌ Operation cancelled by user.")
+								return nil
+							}
+							fmt.Println()
+						} else {
+							warningColor.Printf("⚠️  Force mode enabled - skipping confirmation prompt\n")
+						}
+					}
+					
 					if dryRun {
 						warningColor.Printf("⚠️  Dry run mode enabled - no files will be moved or deleted\n")
 					}
@@ -119,6 +190,11 @@ func main() {
 								return err
 							}
 						} else if moveFolder := c.String("move-duplicates"); moveFolder != "" {
+							// Validate move folder path
+							if err := validatePath(moveFolder); err != nil {
+								errorColor.Printf("❌ Invalid move folder path: %v\n", err)
+								return err
+							}
 							fmt.Printf("\n🔄 Moving duplicates to: %s\n", moveFolder)
 							err := duplicateHandler.MoveDuplicatesToFolder(moveFolder)
 							if err != nil {
@@ -223,6 +299,11 @@ func main() {
 						Name:    "process-zips",
 						Aliases: []string{"z"},
 						Usage:   "Analyze zip file contents and move them to appropriate category folders",
+					},
+					&cli.BoolFlag{
+						Name:    "force",
+						Aliases: []string{"f"},
+						Usage:   "Skip confirmation prompt (useful for automated scripts)",
 					},
 				},
 			},

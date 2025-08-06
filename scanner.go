@@ -40,6 +40,16 @@ func NewScanner() *Scanner {
 	}
 }
 
+// checkFilePermissions checks if we have read permissions for a file
+func (s *Scanner) checkFilePermissions(filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("cannot read file %s: %v", filePath, err)
+	}
+	file.Close()
+	return nil
+}
+
 // ScanDirectory scans a directory and collects file information
 func (s *Scanner) ScanDirectory(dirPath string) error {
 	fmt.Printf("🔍 Scanning directory: %s\n", dirPath)
@@ -74,6 +84,12 @@ func (s *Scanner) ScanDirectory(dirPath string) error {
 			return nil
 		}
 
+		// Check file permissions before processing
+		if err := s.checkFilePermissions(path); err != nil {
+			fmt.Printf("⚠️  Skipping file due to permission error: %s - %v\n", path, err)
+			return nil // Continue scanning other files
+		}
+
 		// Get file extension
 		ext := strings.ToLower(filepath.Ext(info.Name()))
 		if ext == "" {
@@ -87,6 +103,7 @@ func (s *Scanner) ScanDirectory(dirPath string) error {
 		hash, err := s.calculateFileHash(path)
 		if err != nil {
 			fmt.Printf("⚠️  Could not calculate hash for %s: %v\n", path, err)
+			// Continue without hash rather than failing completely
 			hash = ""
 		}
 

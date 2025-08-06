@@ -12,6 +12,11 @@ import (
 	"github.com/fatih/color"
 )
 
+const (
+	maxZipSize    = 100 * 1024 * 1024 // 100MB max zip size
+	maxZipEntries = 10000              // Max number of entries in zip
+)
+
 // FileOrganizer handles organizing files into categorized folders
 type FileOrganizer struct {
 	Scanner      *Scanner
@@ -40,6 +45,64 @@ func NewFileOrganizer(scanner *Scanner, dryRun bool, basePath string) *FileOrgan
 		CategoryMap: categoryMap,
 		BasePath:    basePath,
 	}
+}
+
+// checkZipBomb validates zip file to prevent zip bomb attacks
+func (fo *FileOrganizer) checkZipBomb(zipPath string) error {
+	fileInfo, err := os.Stat(zipPath)
+	if err != nil {
+		return fmt.Errorf("cannot stat zip file: %v", err)
+	}
+
+	// Check file size
+	if fileInfo.Size() > maxZipSize {
+		return fmt.Errorf("zip file too large (%d bytes), max allowed: %d bytes", fileInfo.Size(), maxZipSize)
+	}
+
+	// Open zip to check number of entries
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("cannot open zip file: %v", err)
+	}
+	defer r.Close()
+
+	// Count entries and check for zip bomb patterns
+	entryCount := 0
+	totalSize := int64(0)
+	
+	for _, f := range r.File {
+		entryCount++
+		if entryCount > maxZipEntries {
+			return fmt.Errorf("zip file has too many entries (%d), max allowed: %d", entryCount, maxZipEntries)
+		}
+
+		// Check for suspicious compression ratios
+		if f.UncompressedSize64 > 0 {
+			compressionRatio := float64(f.CompressedSize64) / float64(f.UncompressedSize64)
+			if compressionRatio < 0.01 && f.UncompressedSize64 > 1024*1024 { // Suspicious if <1% compression on large files
+				return fmt.Errorf("suspicious compression ratio detected in zip file")
+			}
+		}
+
+		totalSize += int64(f.UncompressedSize64)
+		if totalSize > maxZipSize*10 { // Allow 10x expansion
+			return fmt.Errorf("zip file would expand to too large size (%d bytes)", totalSize)
+		}
+	}
+
+	return nil
+}
+
+// atomicMove performs an atomic file move operation
+func (fo *FileOrganizer) atomicMove(src, dst string) error {
+	// Try atomic rename first (works on same filesystem)
+	err := os.Rename(src, dst)
+	if err == nil {
+		return nil
+	}
+
+	// If rename fails (cross-device), use copy + delete
+	return fo.copyAndDelete(src, dst)
 }
 
 // OrganizeFiles organizes all files into their respective category folders
@@ -99,15 +162,11 @@ func (fo *FileOrganizer) OrganizeFiles() error {
 				fmt.Printf("   📁 Would move: %s -> %s\n", file.Name, folderName)
 			} else {
 				fmt.Printf("   📁 Moving: %s\n", file.Name)
-				err := os.Rename(file.Path, destPath)
+				err := fo.atomicMove(file.Path, destPath)
 				if err != nil {
-					// If rename fails (cross-device?), try copy + delete
-					err = fo.copyAndDelete(file.Path, destPath)
-					if err != nil {
-						warningColor.Printf("   ⚠️  Failed to move %s: %v\n", file.Name, err)
-						totalSkipped++
-						continue
-					}
+					warningColor.Printf("   ⚠️  Failed to move %s: %v\n", file.Name, err)
+					totalSkipped++
+					continue
 				}
 			}
 			totalMoved++
@@ -184,15 +243,11 @@ func (fo *FileOrganizer) OrganizeByDate() error {
 				fmt.Printf("   📁 Would move: %s -> %s\n", file.Name, dateKey)
 			} else {
 				fmt.Printf("   📁 Moving: %s\n", file.Name)
-				err := os.Rename(file.Path, destPath)
+				err := fo.atomicMove(file.Path, destPath)
 				if err != nil {
-					// If rename fails (cross-device?), try copy + delete
-					err = fo.copyAndDelete(file.Path, destPath)
-					if err != nil {
-						warningColor.Printf("   ⚠️  Failed to move %s: %v\n", file.Name, err)
-						totalSkipped++
-						continue
-					}
+					warningColor.Printf("   ⚠️  Failed to move %s: %v\n", file.Name, err)
+					totalSkipped++
+					continue
 				}
 			}
 			totalMoved++
@@ -287,15 +342,11 @@ func (fo *FileOrganizer) OrganizeBySize() error {
 				fmt.Printf("   📁 Would move: %s -> %s\n", file.Name, sizeCat.name)
 			} else {
 				fmt.Printf("   📁 Moving: %s\n", file.Name)
-				err := os.Rename(file.Path, destPath)
+				err := fo.atomicMove(file.Path, destPath)
 				if err != nil {
-					// If rename fails (cross-device?), try copy + delete
-					err = fo.copyAndDelete(file.Path, destPath)
-					if err != nil {
-						warningColor.Printf("   ⚠️  Failed to move %s: %v\n", file.Name, err)
-						totalSkipped++
-						continue
-					}
+					warningColor.Printf("   ⚠️  Failed to move %s: %v\n", file.Name, err)
+					totalSkipped++
+					continue
 				}
 			}
 			totalMoved++
@@ -339,6 +390,13 @@ func (fo *FileOrganizer) ProcessZipFiles() error {
 
 		infoColor.Printf("📦 Processing zip file: %s\n", zipFile.Name)
 
+		// Check for zip bomb before processing
+		if err := fo.checkZipBomb(zipFile.Path); err != nil {
+			warningColor.Printf("⚠️  Skipping suspicious zip file %s: %v\n", zipFile.Name, err)
+			totalSkipped++
+			continue
+		}
+
 		// Open the zip file
 		r, err := zip.OpenReader(zipFile.Path)
 		if err != nil {
@@ -375,15 +433,11 @@ func (fo *FileOrganizer) ProcessZipFiles() error {
 			fmt.Printf("   📁 Would move: %s -> %s\n", zipFile.Name, folderName)
 		} else {
 			fmt.Printf("   📁 Moving: %s\n", zipFile.Name)
-			err := os.Rename(zipFile.Path, destPath)
+			err := fo.atomicMove(zipFile.Path, destPath)
 			if err != nil {
-				// If rename fails (cross-device?), try copy + delete
-				err = fo.copyAndDelete(zipFile.Path, destPath)
-				if err != nil {
-					warningColor.Printf("   ⚠️  Failed to move %s: %v\n", zipFile.Name, err)
-					totalSkipped++
-					continue
-				}
+				warningColor.Printf("   ⚠️  Failed to move %s: %v\n", zipFile.Name, err)
+				totalSkipped++
+				continue
 			}
 		}
 		totalProcessed++
@@ -490,6 +544,11 @@ func (fo *FileOrganizer) copyAndDelete(src, dst string) error {
 	// Copy file content
 	_, err = io.Copy(dstFile, srcFile)
 	if err != nil {
+		return err
+	}
+
+	// Sync to ensure data is written
+	if err := dstFile.Sync(); err != nil {
 		return err
 	}
 
