@@ -134,6 +134,20 @@ func (fo *FileOrganizer) OrganizeFiles() error {
 			}
 		}
 
+		// Skip processing if we can't create the folder in dry-run mode
+		if fo.DryRun {
+			// Check if folder would be writable
+			if _, err := os.Stat(categoryPath); os.IsNotExist(err) {
+				// Try to create a temporary folder to test permissions
+				testPath := filepath.Join(fo.BasePath, ".test_permissions")
+				if err := os.MkdirAll(testPath, 0755); err != nil {
+					warningColor.Printf("⚠️  Would not be able to create folder %s: %v\n", folderName, err)
+					continue
+				}
+				os.RemoveAll(testPath) // Clean up test folder
+			}
+		}
+
 		infoColor.Printf("📂 Processing %s (%d files)...\n", category, len(files))
 
 		// Move each file to its category folder

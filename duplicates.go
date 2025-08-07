@@ -145,6 +145,9 @@ func (dh *DuplicateHandler) RemoveDuplicatesInteractive() error {
 			_, err := fmt.Scanln(&choice)
 			if err != nil {
 				fmt.Println("   Please enter a valid number.")
+				// Clear the input buffer to prevent infinite loop
+				var discard string
+				fmt.Scanln(&discard)
 				continue
 			}
 			
@@ -226,11 +229,11 @@ func (dh *DuplicateHandler) RemoveDuplicatesByPattern() error {
 		var originalFile *FileInfo
 		var copyFiles []FileInfo
 
-		for _, file := range files {
-			if dh.isOriginalFile(file.Name) {
-				originalFile = &file
+		for i := range files {
+			if dh.isOriginalFile(files[i].Name) {
+				originalFile = &files[i]
 			} else {
-				copyFiles = append(copyFiles, file)
+				copyFiles = append(copyFiles, files[i])
 			}
 		}
 

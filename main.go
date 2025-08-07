@@ -36,9 +36,11 @@ func validatePath(path string) error {
 	}
 
 	// Ensure path is within user's home directory or system temp
+	tempDir := os.TempDir()
 	if !strings.HasPrefix(absPath, homeDir) && 
-	   !strings.HasPrefix(absPath, os.TempDir()) &&
-	   !strings.HasPrefix(absPath, "/tmp") {
+	   !strings.HasPrefix(absPath, tempDir) &&
+	   !strings.HasPrefix(absPath, "/tmp") &&
+	   !strings.HasPrefix(absPath, "/var/folders") {
 		return fmt.Errorf("path must be within user directory or temp directory")
 	}
 
@@ -85,7 +87,7 @@ func main() {
 		Name:        "elf-cli",
 		Usage:       "A friendly tool to clean up your downloads folder",
 		Description: "Organize your downloads folder by removing duplicates, categorizing files, and inspecting zip archives.",
-		Version:     "1.2.0",
+		Version:     "1.3.0",
 		Authors: []*cli.Author{
 			{
 				Name: "FolderElf CLI",

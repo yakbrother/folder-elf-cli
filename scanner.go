@@ -174,10 +174,16 @@ func (s *Scanner) calculateFileHash(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			fmt.Printf("⚠️  Warning: failed to close file %s: %v\n", filePath, closeErr)
+		}
+	}()
 
 	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	// Use a buffer to limit memory usage for large files
+	buf := make([]byte, 32*1024) // 32KB buffer
+	if _, err := io.CopyBuffer(hash, file, buf); err != nil {
 		return "", err
 	}
 
