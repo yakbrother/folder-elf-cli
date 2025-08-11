@@ -34,7 +34,6 @@ func (dh *DuplicateHandler) atomicMove(src, dst string) error {
 	// If rename fails (cross-device), use copy + delete
 	return dh.copyAndDelete(src, dst)
 }
-
 // RemoveDuplicates removes duplicate files, keeping the newest version of each
 func (dh *DuplicateHandler) RemoveDuplicates() error {
 	if len(dh.Scanner.Duplicates) == 0 {
@@ -229,11 +228,11 @@ func (dh *DuplicateHandler) RemoveDuplicatesByPattern() error {
 		var originalFile *FileInfo
 		var copyFiles []FileInfo
 
-		for i := range files {
-			if dh.isOriginalFile(files[i].Name) {
-				originalFile = &files[i]
+		for _, file := range files {
+			if dh.isOriginalFile(file.Name) {
+				originalFile = &file
 			} else {
-				copyFiles = append(copyFiles, files[i])
+				copyFiles = append(copyFiles, file)
 			}
 		}
 
@@ -417,7 +416,6 @@ func (dh *DuplicateHandler) copyAndDelete(src, dst string) error {
 	if err := dstFile.Sync(); err != nil {
 		return err
 	}
-
 	// Delete source file
 	return os.Remove(src)
 }

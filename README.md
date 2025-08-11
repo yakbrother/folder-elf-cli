@@ -44,38 +44,6 @@ curl -L https://github.com/yakbrother/folder-elf-cli/releases/latest/download/el
 
 1. **Clone this repository**:
 
-   ```bash
-   git clone https://github.com/yakbrother/folder-elf-cli.git
-   cd folder-elf-cli
-   ```
-
-2. **Build the tool**:
-
-   ```bash
-   go build -o elf-cli
-   ```
-
-3. **Make it executable** (optional):
-
-   ```bash
-   chmod +x elf-cli
-   ```
-
-4. **Move it to a directory in your PATH** (optional):
-   ```bash
-   mv elf-cli /usr/local/bin/
-   ```
-
-### Option 3: Install via Go
-
-If you have Go installed:
-
-```bash
-go install github.com/yakbrother/folder-elf-cli@latest
-```
-
-This will install the tool to `$GOPATH/bin/` or `$GOBIN/`.
-
 ## Usage
 
 ### Basic Usage
@@ -120,7 +88,7 @@ To see what would be done without actually making any changes:
 ./elf-cli clean --dry-run
 ```
 
-**Note**: The tool will show a warning and ask for confirmation before making changes. Use `--force` to skip the confirmation prompt (useful for automated scripts).
+**Note**: The tool will show a warning and ask for confirmation before making changes. Use `--force` to skip the confirmation prompt (useful for automation).
 
 ### Removing Duplicates
 
