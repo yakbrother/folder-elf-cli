@@ -1,4 +1,5 @@
 # FolderElf CLI - A friendly tool to clean up your downloads folder
+![lz69r77GtIaxNscKZsA9--0--b1to3](https://github.com/user-attachments/assets/1a24e9ea-88e7-4d5b-948f-d653aaa553d1)
 
 FolderElf CLI (command name: elf-cli) is a command-line tool written in Go that helps you organize your downloads folder by removing duplicates, categorizing files, and inspecting zip archives to determine their appropriate folders.
 
